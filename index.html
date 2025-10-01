@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>The Ideator</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #475569;
+    --line: #e2e8f0;
+    --accent: #0f172a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: linear-gradient(#fff, var(--bg));
+    color: var(--text); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+  }
+  .pad { padding: 16px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    appearance: none; border: 1px solid var(--line); background: #fff; color: var(--text);
+    padding: 10px 14px; border-radius: 12px; cursor: pointer;
+  }
+  .btn:hover { background: #f1f5f9; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(0.96); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); background: #f8fafc; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+  textarea, input[type="text"] {
+    width: 100%; border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+    font: inherit; outline: none; background: #fff;
+  }
+  textarea:focus, input[type="text"]:focus { box-shadow: 0 0 0 3px #cbd5e1; }
+  textarea { min-height: 180px; resize: vertical; }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 3fr 2fr; } }
+  .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .entry { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
+  kbd { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12px; background: #fff; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Idea Gauntlet</h1>
+        <div class="muted">
+          Type below. Click <b>Next</b> to draw a random nudge. Click <b>Finish</b> to copy everything.
+          (<kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd> = Next, <kbd>⌘/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> = Finish)
+        </div>
+      </div>
+      <button id="how" class="btn">How it works</button>
+    </header>
+
+    <div id="howBox" class="card pad" style="display:none;">
+      <div class="muted">
+        Your writing and prompts are saved locally in your browser (localStorage). Add your own prompts to steer the session.
+        Use <b>Next</b> whenever you want a new nudge; <b>Finish</b> copies a clean session export. You can also download a .txt file.
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:16px;">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="muted" style="text-transform:uppercase; letter-spacing:.12em; font-size:11px;">Current prompt</div>
+          <div id="currentPrompt" style="font-weight:600; font-size:20px; margin-top:4px;">(loading…)</div>
+          <div id="lastPrompt" class="muted" style="font-size:12px; margin-top:2px;"></div>
+        </div>
+        <div class="row">
+          <button id="nextBtn" class="btn primary">Next</button>
+          <button id="finishBtn" class="btn">Finish & Copy</button>
+          <button id="downloadBtn" class="btn">Download</button>
+          <button id="clearBtn" class="btn">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <textarea id="draft" placeholder="Type here… then press Next for a new nudge."></textarea>
+    </div>
+
+    <div class="grid" style="margin-top:16px;">
+      <div class="card pad">
+        <div class="row" style="justify-content:space-between;">
+          <h2 style="margin:0; font-size:18px;">Session entries <span class="muted" id="count">(0)</span></h2>
+        </div>
+        <ul id="entries" class="list" style="margin-top:10px;"></ul>
+      </div>
+
+      <div class="card pad">
+        <div class="row" style="justify-content:space-between;">
+          <h2 style="margin:0; font-size:18px;">Prompt stock</h2>
+          <button id="toggleEdit" class="btn">Edit</button>
+        </div>
+        <div id="stockView" style="margin-top:10px;">
+          <div id="chips" class="chips"></div>
+          <div class="row" style="margin-top:10px;">
+            <input id="addInput" type="text" placeholder="Add a prompt (press Enter)" />
+            <button id="addBtn" class="btn">Add</button>
+          </div>
+        </div>
+        <div id="stockEdit" style="display:none; margin-top:10px;">
+          <textarea id="stockArea" class="mono" style="height:160px;"></textarea>
+          <div class="row" style="justify-content:flex-end; margin-top:8px;">
+            <button id="saveStock" class="btn">Save changes</button>
+          </div>
+        </div>
+
+        <div class="card pad" style="margin-top:12px;">
+          <div class="row">
+            <button id="copyAll" class="btn">Copy all</button>
+            <button id="download2" class="btn">Download .txt</button>
+          </div>
+          <div class="muted" style="margin-top:6px; font-size:12px;">Data is saved locally (no server).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">Built for rapid ideation — no logins, no servers.</div>
+  </div>
+
+<script>
+  // --- Defaults ---
+  const DEFAULT_PROMPTS = [
+    "crystallize",
+    "blur",
+    "more abstract",
+    "more concrete",
+    "how to implement or execute?",
+    "how to communicate?",
+    "play defense",
+    "play offense"
+  ];
+
+  // --- State (localStorage-backed) ---
+  const store = {
+    get prompts() { return JSON.parse(localStorage.getItem("ig.prompts") || "null") || DEFAULT_PROMPTS; },
+    set prompts(v) { localStorage.setItem("ig.prompts", JSON.stringify(v)); },
+    get current() { return JSON.parse(localStorage.getItem("ig.current") || "null"); },
+    set current(v) { localStorage.setItem("ig.current", JSON.stringify(v)); },
+    get entries() { return JSON.parse(localStorage.getItem("ig.entries") || "[]"); },
+    set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); },
+    get draft() { return localStorage.getItem("ig.draft") || ""; },
+    set draft(v) { localStorage.setItem("ig.draft", v); },
+    get last() { return JSON.parse(localStorage.getItem("ig.last") || "null"); },
+    set last(v) { localStorage.setItem("ig.last", JSON.stringify(v)); },
+  };
+
+  // --- DOM refs ---
+  const howBtn = document.getElementById("how");
+  const howBox = document.getElementById("howBox");
+  const currentPromptEl = document.getElementById("currentPrompt");
+  const lastPromptEl = document.getElementById("lastPrompt");
+  const nextBtn = document.getElementById("nextBtn");
+  const finishBtn = document.getElementById("finishBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const draftEl = document.getElementById("draft");
+  const entriesUl = document.getElementById("entries");
+  const countEl = document.getElementById("count");
+  const toggleEditBtn = document.getElementById("toggleEdit");
+  const stockView = document.getElementById("stockView");
+  const stockEdit = document.getElementById("stockEdit");
+  const stockArea = document.getElementById("stockArea");
+  const chips = document.getElementById("chips");
+  const addInput = document.getElementById("addInput");
+  const addBtn = document.getElementById("addBtn");
+  const copyAllBtn = document.getElementById("copyAll");
+  const download2Btn = document.getElementById("download2");
+
+  function randPrompt(stock, last) {
+    if (!stock.length) return "(add prompts)";
+    if (stock.length === 1) return stock[0];
+    let p;
+    do { p = stock[Math.floor(Math.random() * stock.length)]; } while (p === last);
+    return p;
+  }
+
+  function renderPrompts() {
+    chips.innerHTML = "";
+    store.prompts.forEach(p => {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = p;
+      chips.appendChild(span);
+    });
+    stockArea.value = store.prompts.join("\n");
+  }
+
+  function renderEntries() {
+    entriesUl.innerHTML = "";
+    const entries = store.entries;
+    countEl.textContent = `(${entries.length})`;
+    if (entries.length === 0) {
+      const li = document.createElement("li");
+      li.className = "entry muted";
+      li.textContent = "No entries yet. Start typing and press Next.";
+      entriesUl.appendChild(li);
+      return;
+    }
+    entries.forEach((e, i) => {
+      const li = document.createElement("li");
+      li.className = "entry";
+      const time = new Date(e.ts).toLocaleTimeString();
+      li.innerHTML = `<div class="muted" style="font-size:12px;">#${i+1} · ${time}</div>
+                      <div style="font-weight:600;">${e.prompt}</div>
+                      <div style="white-space:pre-wrap; font-size:14px; margin-top:4px;">${e.text ? escapeHtml(e.text) : '<span class="muted">(no text)</span>'}</div>`;
+      entriesUl.appendChild(li);
+    });
+  }
+
+  function escapeHtml(str){
+    return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+  }
+
+  function setPrompt(p) {
+    store.last = store.current || null;
+    store.current = p;
+    currentPromptEl.textContent = p;
+    lastPromptEl.textContent = store.last ? `(last: ${store.last})` : "";
+  }
+
+  function exportText() {
+    const header = `Ideator Session Export
+Date: ${new Date().toLocaleString()}
+Prompts used: ${[...new Set(store.entries.map(e => e.prompt))].join(", ")}
+`;
+    const body = store.entries.map((e,i) =>
+      `\n### ${i+1}. ${e.prompt} (at ${new Date(e.ts).toLocaleTimeString()})\n${(e.text||"").trim()}\n`
+    ).join("");
+    return header + "\n" + body;
+  }
+
+  function download(filename, text) {
+    const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Actions ---
+  function next() {
+    const t = (draftEl.value || "").trim();
+    if (t.length > 0 || store.entries.length === 0) {
+      const entry = { prompt: store.current || randPrompt(store.prompts), text: t, ts: Date.now() };
+      const arr = store.entries; arr.push(entry); store.entries = arr;
+      draftEl.value = ""; store.draft = "";
+      renderEntries();
+    }
+    setPrompt(randPrompt(store.prompts, store.current));
+    draftEl.focus();
+  }
+
+  async function finishCopy() {
+    const t = (draftEl.value || "").trim();
+    if (t.length > 0) {
+      const arr = store.entries; arr.push({ prompt: store.current || "(none)", text: t, ts: Date.now() });
+      store.entries = arr; draftEl.value = ""; store.draft = "";
+      renderEntries();
+    }
+    const txt = exportText();
+    try { await navigator.clipboard.writeText(txt); alert("Copied session to clipboard!"); }
+    catch { /* ignore */ }
+  }
+
+  function clearSession() {
+    if (!confirm("Clear all entries and draft?")) return;
+    store.entries = []; draftEl.value = ""; store.draft = "";
+    renderEntries();
+  }
+
+  // --- Events ---
+  howBtn.onclick = () => { howBox.style.display = howBox.style.display ? "" : "none"; };
+  nextBtn.onclick = next;
+  finishBtn.onclick = finishCopy;
+  downloadBtn.onclick = () => download("ideator_session.txt", exportText());
+  clearBtn.onclick = clearSession;
+  draftEl.oninput = () => { store.draft = draftEl.value; };
+  addBtn.onclick = () => {
+    const v = (addInput.value || "").trim();
+    if (!v) return;
+    const s = store.prompts.slice(); if (!s.includes(v)) s.push(v); store.prompts = s;
+    addInput.value = ""; renderPrompts();
+  };
+  addInput.onkeydown = (e) => { if (e.key === "Enter") { addBtn.click(); } };
+  toggleEditBtn.onclick = () => {
+    const edit = stockEdit.style.display === "none";
+    stockEdit.style.display = edit ? "block" : "none";
+    stockView.style.display = edit ? "none" : "block";
+    if (edit) stockArea.value = store.prompts.join("\n");
+  };
+  document.getElementById("saveStock").onclick = () => {
+    const lines = stockArea.value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    store.prompts = lines; renderPrompts();
+    toggleEditBtn.click();
+  };
+  copyAllBtn.onclick = finishCopy;
+  download2Btn.onclick = () => download("ideator_session.txt", exportText());
+
+  // Keyboard shortcuts
+  window.addEventListener("keydown", (e) => {
+    const cmd = e.metaKey || e.ctrlKey;
+    if (cmd && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); next(); }
+    if (cmd && e.key === "Enter" && e.shiftKey) { e.preventDefault(); finishCopy(); }
+    if (cmd && e.key.toLowerCase() === "k") { e.preventDefault(); draftEl.focus(); }
+  });
+
+  // --- Init ---
+  (function init(){
+    renderPrompts();
+    setPrompt(store.current || randPrompt(store.prompts));
+    draftEl.value = store.draft;
+    renderEntries();
+  })();
+</script>
+</body>
+</html>
