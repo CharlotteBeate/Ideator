@@ -147,22 +147,32 @@
   function escapeHtml(str){ return String(str).replace(/[&<>\"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 
   // ===== Dangerous Mode =====
-  let danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
+  let danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null,   hasRunThisPrompt:false };
   function setDangerUI(on){ draftEl.classList.toggle('danger-active', !!on); }
-  function startDangerWindow(){
-    if(!dangerToggle.checked || danger.active) return;
-    danger.active=true; danger.startTs=Date.now(); danger.endTs=danger.startTs+60_000; danger.lastTypeTs=Date.now();
-    setDangerUI(true);
-    dangerStatus.textContent="Dangerous Mode active: 60s window. Pausing > 2s clears text.";
-    danger.interval=setInterval(()=>{
-      const now=Date.now();
-      if(!dangerToggle.checked){ stopDanger("Dangerous Mode off."); return; }
-      const remaining=Math.max(0, Math.ceil((danger.endTs-now)/1000));
-      if(now>danger.endTs){ stopDanger("Dangerous Mode is over for this prompt."); return; }
-      dangerStatus.textContent=`Dangerous Mode active — ${remaining}s left. Pausing > 2s clears text.`;
-      if(now-danger.lastTypeTs>2000){ draftEl.value=""; danger.lastTypeTs=now; }
-    },200);
+  function startDangerWindow() {
+  if (!dangerToggle.checked || danger.active) return;
+
+  // PREVENT re-starting for this prompt
+  if (danger.hasRunThisPrompt) {
+    dangerStatus.textContent = "Dangerous Mode already used for this prompt.";
+    return;
   }
+  danger.hasRunThisPrompt = true; // mark as used as soon as we start
+
+  danger.active = true;
+  danger.startTs = Date.now();
+  danger.endTs   = danger.startTs + 60_000;
+  danger.lastTypeTs = Date.now();
+  draftEl.classList.add("danger-active");
+  dangerStatus.textContent = "Dangerous Mode active: 60s window. Pausing > 2s clears text.";
+
+  danger.interval = setInterval(() => {
+    const now = Date.now();
+    if (!dangerToggle.checked) { stopDanger("Dangerous Mode off."); return; }
+    if (now > danger.endTs) { stopDanger("Dangerous Mode is over for this prompt."); return; }
+    if (now - danger.lastTypeTs > 2000) { draftEl.value = ""; store.draft = ""; danger.lastTypeTs = now; }
+  }, 200);
+}
   function stopDanger(msg=""){
     if(danger.interval) clearInterval(danger.interval);
     danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
