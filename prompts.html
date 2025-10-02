@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Manage Prompts — Ideator</title>
+<style>
+  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#475569; --line:#e2e8f0; --accent:#166534; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: linear-gradient(#fff, var(--bg)); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+  h1 { margin: 0; font-size: 32px; letter-spacing: -0.02em; color: var(--accent); font-weight: 800; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+  .pad { padding: 16px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn { appearance:none; border:1px solid var(--line); background:#fff; color:var(--text);
+         padding:10px 14px; border-radius:12px; cursor:pointer; }
+  .btn:hover { background:#f1f5f9; }
+  .btn.primary { background:#0b0f19; color:#fff; border-color:#0b0f19; }
+  textarea, input[type="text"] { width:100%; border:1px solid var(--line); border-radius:16px; padding:14px; font:inherit; outline:none; background:#fff; }
+  textarea:focus, input[type="text"]:focus { box-shadow:0 0 0 3px #cbd5e1; }
+  textarea { min-height: 260px; resize: vertical; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .chip { border:1px solid var(--line); background:#f8fafc; padding:6px 10px; border-radius:999px; font-size:12px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <h1>Manage Prompts</h1>
+      <a href="index.html" class="btn">← Back to Ideator</a>
+    </div>
+
+    <div class="card pad" style="margin-top:16px;">
+      <div class="muted" style="margin-bottom:8px;">Prompts are shared via <code>localStorage</code> (key <code>ig.prompts</code>).
+        One prompt per line. Changes apply immediately.</div>
+      <textarea id="stockArea" placeholder="One prompt per line..."></textarea>
+
+      <div class="row" style="justify-content:flex-end; margin-top:10px;">
+        <button id="resetBtn" class="btn">Reset to defaults</button>
+        <button id="saveBtn" class="btn primary">Save</button>
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:16px;">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h2 style="margin:0; font-size:18px;">Current stock (preview)</h2>
+        <div class="row">
+          <input id="addInput" type="text" placeholder="Add a prompt (press Enter)" style="max-width:360px;" />
+          <button id="addBtn" class="btn">Add</button>
+        </div>
+      </div>
+      <div id="chips" class="chips"></div>
+    </div>
+  </div>
+
+<script>
+  const DEFAULTS = [
+    "crystallize","blur","more abstract","more concrete",
+    "how to implement or execute?","how to communicate?",
+    "play defense","play offense","why is this hard to make progress on?",
+    "How to make bigger/more imaginary/radical?",
+    "How to make more narrow/concrete/implementable next week?"
+  ];
+
+  const store = {
+    get prompts(){ try{return JSON.parse(localStorage.getItem("ig.prompts")||"null")||DEFAULTS;}catch{return DEFAULTS;} },
+    set prompts(v){ localStorage.setItem("ig.prompts", JSON.stringify(Array.from(new Set(v)).filter(Boolean))); }
+  };
+
+  const stockArea = document.getElementById("stockArea");
+  const chips = document.getElementById("chips");
+  const addInput = document.getElementById("addInput");
+  const addBtn = document.getElementById("addBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  function renderChips(){
+    chips.innerHTML = "";
+    (store.prompts||[]).forEach(p=>{
+      const s=document.createElement("span"); s.className="chip"; s.textContent=p; chips.appendChild(s);
+    });
+  }
+
+  function loadIntoTextarea(){
+    stockArea.value = (store.prompts||[]).join("\n");
+  }
+
+  function saveFromTextarea(){
+    const lines = stockArea.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    store.prompts = lines.length ? lines : DEFAULTS;
+    renderChips();
+  }
+
+  // init
+  (function init(){
+    loadIntoTextarea();
+    renderChips();
+  })();
+
+  addBtn.onclick = () => {
+    const v=(addInput.value||"").trim(); if(!v) return;
+    const next = [...(store.prompts||[]), v];
+    store.prompts = next;
+    addInput.value="";
+    loadIntoTextarea();
+    renderChips();
+  };
+  addInput.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); addBtn.click(); }});
+
+  saveBtn.onclick = saveFromTextarea;
+  resetBtn.onclick = () => { store.prompts = DEFAULTS; loadIntoTextarea(); renderChips(); };
+</script>
+</body>
+</html>
