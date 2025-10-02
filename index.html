@@ -6,23 +6,25 @@
 <title>The Ideator</title>
 <style>
   :root {
-    --bg: #f8fafc;
-    --card: #ffffff;
-    --text: #0f172a;
-    --muted: #475569;
-    --line: #e2e8f0;
-    --accent: #166534; /* slightly dark green */
+    --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --muted: #475569;
+    --line: #e2e8f0; --accent: #166534;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: linear-gradient(#fff, var(--bg)); color: var(--text); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  body { margin: 0; background: linear-gradient(#fff, var(--bg)); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
   .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
   header { margin-bottom: 16px; }
   h1 { margin: 0; font-size: 40px; letter-spacing: -0.02em; color: var(--accent); font-weight: 800; }
   .muted { color: var(--muted); font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
   .pad { padding: 16px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .btn { appearance: none; border: 1px solid var(--line); background: #fff; color: var(--text); padding: 10px 14px; border-radius: 12px; cursor: pointer; }
+  .row.gap-12 { gap: 12px; }
+  .grow { flex: 1 1 auto; min-width: 220px; }
+  .right { justify-content: flex-end; }
+  .btn { appearance: none; border: 1px solid var(--line); background: #fff; color: var(--text);
+         padding: 10px 14px; border-radius: 12px; cursor: pointer; }
   .btn:hover { background: #f1f5f9; }
   .btn.primary { background: #0b0f19; color: #fff; border-color: #0b0f19; }
   .btn.primary:hover { filter: brightness(0.96); }
@@ -35,37 +37,30 @@
   .entry { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
   .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
   .label { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
-  .right { justify-content: flex-end; }
-  .toggle { display:inline-flex; align-items:center; gap:8px; font-size: 13px; color: var(--muted); }
-  .switch { position: relative; width: 38px; height: 22px; display:inline-block; }
-  .switch input { opacity:0; width:0; height:0; }
-  .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; transition:.2s; border-radius:999px; }
-  .slider:before { position:absolute; content:""; height:18px; width:18px; left:2px; top:2px; background:white; transition:.2s; border-radius:50%; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
-  .switch input:checked + .slider { background:#16a34a; }
-  .switch input:checked + .slider:before { transform: translateX(16px); }
+  .danger-active { outline: 2px dashed #ef4444; outline-offset: 2px; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>The Ideator</h1>
-    </header>
+    <header><h1>The Ideator</h1></header>
 
     <details id="infoBox" class="card pad">
       <summary class="btn" style="display:inline-block; margin-bottom:8px;">Info</summary>
       <div class="muted" style="max-width:72ch;">
-        This is an interface to enable quick iterations of ideation. You get a prompt for how to move with your idea and can start writing; once you run out, click <b>Next</b> (or <kbd>Ctrl</kbd> + <kbd>Enter</kbd>) to get a new prompt. When you finish this chain of ideation, click <b>Finish & Copy</b> (or <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd>) to copy your chain. To download the chain, click <b>Download</b>. To change the list of prompts, scroll to the bottom of this page. Your writing is saved locally in your browser. No one else has access to it.
+        This interface helps fast iteration. Type freely. Click <b>Next</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>) for a new prompt.
+        Click <b>Finish & Copy</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>) to copy your chain.
+        Data is saved locally in your browser.
       </div>
     </details>
 
     <div class="card pad" style="margin-top:16px;">
       <div class="row" style="justify-content:space-between; align-items:flex-end;">
-        <div>
+        <div class="grow">
           <div class="label">Current prompt</div>
           <div id="currentPrompt" style="font-weight:700; font-size:22px; margin-top:4px;">(loading…)</div>
           <div id="lastPrompt" class="muted" style="font-size:12px; margin-top:2px;"></div>
         </div>
-        <div class="row right">
+        <div class="row right gap-12">
           <button id="nextBtn" class="btn primary">Next</button>
           <button id="finishBtn" class="btn">Finish & Copy</button>
           <button id="downloadBtn" class="btn">Download</button>
@@ -78,204 +73,175 @@
       <div class="row" style="justify-content:space-between; margin-bottom:6px;">
         <label class="toggle" title="If on, pausing > 2s in the first minute clears text (per prompt)">
           Dangerous Mode
-          <span class="switch"><input type="checkbox" id="dangerToggle"><span class="slider"></span></span>
+          <span class="switch" style="position:relative; width:38px; height:22px; display:inline-block;">
+            <input type="checkbox" id="dangerToggle" style="opacity:0; width:0; height:0;">
+            <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; transition:.2s; border-radius:999px;">
+              <span style="position:absolute; content:''; height:18px; width:18px; left:2px; top:2px; background:white; transition:.2s; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.18);"></span>
+            </span>
+          </span>
         </label>
+        <a href="prompts.html" class="btn" title="Manage prompt stock">Manage prompts</a>
       </div>
       <textarea id="draft" placeholder="Type here ..."></textarea>
       <div id="dangerStatus" class="muted" style="margin-top:6px; font-size:12px;"></div>
     </div>
 
     <div class="card pad" style="margin-top:16px;">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <label for="titleInput" style="margin-right:6px; font-size:14px; color:var(--muted);">Topic/Title:</label>
-        <h2 style="margin:0; font-size:18px;">Session entries <span class="muted" id="count">(0)</span></h2>
+      <!-- Topic/Title to the right of Session entries -->
+      <div class="row" style="justify-content:space-between; align-items:center; gap:12px;">
+        <h2 class="grow" style="margin:0; font-size:18px;">Session entries <span class="muted" id="count">(0)</span></h2>
+        <label for="titleInput" class="muted" style="font-size:14px;">Topic/Title:</label>
         <input id="titleInput" type="text" placeholder="Add a title/topic (optional)" style="max-width:360px;" />
       </div>
       <ul id="entries" class="list" style="margin-top:10px;"></ul>
     </div>
 
     <div class="card pad" style="margin-top:16px;">
-      <div class="row" style="justify-content:space-between;">
-        <h2 style="margin:0; font-size:18px;">Prompt stock</h2>
-        <button id="toggleEdit" class="btn">Edit</button>
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h2 style="margin:0; font-size:18px;">Prompt stock (read-only)</h2>
+        <span class="muted" style="font-size:12px;">Edit in “Manage prompts”</span>
       </div>
-      <div id="stockView" style="margin-top:10px;">
-        <div id="chips" class="chips"></div>
-        <div class="row" style="margin-top:10px;">
-          <input id="addInput" type="text" placeholder="Add a prompt (press Enter)" />
-          <button id="addBtn" class="btn">Add</button>
-        </div>
-      </div>
-      <div id="stockEdit" style="display:none; margin-top:10px;">
-        <textarea id="stockArea" class="mono" style="height:160px;"></textarea>
-        <div class="row" style="justify-content:flex-end; margin-top:8px;">
-          <button id="saveStock" class="btn">Save changes</button>
-        </div>
-      </div>
-
-      <div class="card pad" style="margin-top:12px;">
-        <div class="row">
-          <button id="copyAll" class="btn">Copy all</button>
-          <button id="download2" class="btn">Download .txt</button>
-        </div>
-        <div class="muted" style="margin-top:6px; font-size:12px;">Data is saved locally (no server).</div>
-      </div>
+      <div id="chips" class="chips" style="margin-top:10px;"></div>
     </div>
 
     <div class="foot">Built for rapid ideation — no logins, no servers.</div>
   </div>
 
 <script>
+  // ===== Defaults =====
   const DEFAULT_PROMPTS = [
-    "crystallize",
-    "blur",
-    "more abstract",
-    "more concrete",
-    "how to implement or execute?",
-    "how to communicate?",
-    "play defense",
-    "play offense",
-    "why is this hard to make progress on?",
+    "crystallize","blur","more abstract","more concrete",
+    "how to implement or execute?","how to communicate?",
+    "play defense","play offense","why is this hard to make progress on?",
     "How to make bigger/more imaginary/radical?",
     "How to make more narrow/concrete/implementable next week?"
   ];
 
-  // --- State ---
+  // ===== Local store =====
   const store = {
-    get prompts() { return JSON.parse(localStorage.getItem("ig.prompts") || "null") || DEFAULT_PROMPTS; },
-    set prompts(v) { localStorage.setItem("ig.prompts", JSON.stringify(v)); },
-    get current() { return JSON.parse(localStorage.getItem("ig.current") || "null"); },
-    set current(v) { localStorage.setItem("ig.current", JSON.stringify(v)); },
-    get entries() { return JSON.parse(localStorage.getItem("ig.entries") || "[]"); },
-    set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); },
-    get title() { return localStorage.getItem("ig.title") || ""; },
-    set title(v) { localStorage.setItem("ig.title", v); }
+    get prompts(){ try{return JSON.parse(localStorage.getItem("ig.prompts")||"null")||DEFAULT_PROMPTS;}catch{return DEFAULT_PROMPTS;} },
+    set prompts(v){ localStorage.setItem("ig.prompts", JSON.stringify(v)); },
+    get current(){ try{return JSON.parse(localStorage.getItem("ig.current")||"null");}catch{return null;} },
+    set current(v){ localStorage.setItem("ig.current", JSON.stringify(v)); },
+    get entries(){ try{return JSON.parse(localStorage.getItem("ig.entries")||"[]");}catch{return [];} },
+    set entries(v){ localStorage.setItem("ig.entries", JSON.stringify(v)); },
+    get title(){ return localStorage.getItem("ig.title")||""; },
+    set title(v){ localStorage.setItem("ig.title", v||""); }
   };
 
-  // DOM refs
+  // ===== DOM =====
   const chips = document.getElementById("chips");
   const currentPromptEl = document.getElementById("currentPrompt");
   const lastPromptEl = document.getElementById("lastPrompt");
   const draftEl = document.getElementById("draft");
   const entriesUl = document.getElementById("entries");
   const countEl = document.getElementById("count");
-  const addInput = document.getElementById("addInput");
   const titleInput = document.getElementById("titleInput");
-  const stockEdit = document.getElementById("stockEdit");
   const dangerToggle = document.getElementById("dangerToggle");
   const dangerStatus = document.getElementById("dangerStatus");
 
-  function randPrompt(stock, last) {
-    if (!stock.length) return "(add prompts)";
-    if (stock.length === 1) return stock[0];
-    let p; do { p = stock[Math.floor(Math.random() * stock.length)]; } while (p === last);
-    return p;
-  }
+  // ===== Utils =====
+  function slug(s){ return (s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'session'; }
+  function randPrompt(stock,last){ if(!stock.length) return "(add prompts)"; if(stock.length===1) return stock[0];
+    let p; do{ p=stock[Math.floor(Math.random()*stock.length)]; } while(p===last); return p; }
+  function escapeHtml(str){ return String(str).replace(/[&<>\"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 
-
-  // --- Utils ---
-  function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
-  function randPrompt(stock, last) { if (!stock.length) return "(add prompts)"; if (stock.length === 1) return stock[0]; let p; do { p = stock[Math.floor(Math.random() * stock.length)]; } while (p === last); return p; }
-  function slug(s){ return (s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'session'; }
-
-  // --- Dangerous Mode ---
-  let danger = { active:false, startTs:null, endTs:null, lastTypeTs:null, interval:null };
-  function setDangerUI(on){ if (on) draftEl.classList.add('danger-active'); else draftEl.classList.remove('danger-active'); }
-  function startDangerWindow() {
-    if (!dangerToggle.checked || danger.active) return;
-    danger.active = true; danger.startTs = Date.now(); danger.endTs = danger.startTs + 60_000; danger.lastTypeTs = Date.now();
+  // ===== Dangerous Mode =====
+  let danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
+  function setDangerUI(on){ draftEl.classList.toggle('danger-active', !!on); }
+  function startDangerWindow(){
+    if(!dangerToggle.checked || danger.active) return;
+    danger.active=true; danger.startTs=Date.now(); danger.endTs=danger.startTs+60_000; danger.lastTypeTs=Date.now();
     setDangerUI(true);
-    dangerStatus.textContent = "Dangerous Mode active: 60s window. Pausing > 2s clears text.";
-    danger.interval = setInterval(() => {
-      const now = Date.now();
-      if (!dangerToggle.checked) { stopDanger("Dangerous Mode off."); return; }
-      const remaining = Math.max(0, Math.ceil((danger.endTs - now)/1000));
-      if (now > danger.endTs) { stopDanger("Dangerous Mode is over for this prompt."); return; }
-      dangerStatus.textContent = `Dangerous Mode active — ${remaining}s left. Pausing > 2s clears text.`;
-      if (now - danger.lastTypeTs > 2000) { draftEl.value = ""; store.draft = ""; danger.lastTypeTs = now; }
-    }, 200);
+    dangerStatus.textContent="Dangerous Mode active: 60s window. Pausing > 2s clears text.";
+    danger.interval=setInterval(()=>{
+      const now=Date.now();
+      if(!dangerToggle.checked){ stopDanger("Dangerous Mode off."); return; }
+      const remaining=Math.max(0, Math.ceil((danger.endTs-now)/1000));
+      if(now>danger.endTs){ stopDanger("Dangerous Mode is over for this prompt."); return; }
+      dangerStatus.textContent=`Dangerous Mode active — ${remaining}s left. Pausing > 2s clears text.`;
+      if(now-danger.lastTypeTs>2000){ draftEl.value=""; danger.lastTypeTs=now; }
+    },200);
   }
-  function stopDanger(msg="") { if (danger.interval) clearInterval(danger.interval); danger = { active:false, startTs:null, endTs:null, lastTypeTs:null, interval:null }; setDangerUI(false); dangerStatus.textContent = msg; }
-  function resetDangerForNewPrompt() { stopDanger(""); if (dangerToggle.checked) dangerStatus.textContent = "Dangerous Mode armed for this prompt (starts on first keystroke)."; }
+  function stopDanger(msg=""){
+    if(danger.interval) clearInterval(danger.interval);
+    danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
+    setDangerUI(false); dangerStatus.textContent=msg;
+  }
+  function resetDangerForNewPrompt(){ stopDanger(""); if(dangerToggle.checked) dangerStatus.textContent="Dangerous Mode armed for this prompt (starts on first keystroke)."; }
 
-
-  function renderPrompts() {
-    chips.innerHTML = "";
-    store.prompts.forEach(p => {
-      const span = document.createElement("span");
-      span.className = "chip";
-      span.textContent = p;
-      chips.appendChild(span);
+  // ===== Renderers =====
+  function renderPrompts(){
+    chips.innerHTML="";
+    (store.prompts||[]).forEach(p=>{
+      const span=document.createElement("span"); span.className="chip"; span.textContent=p; chips.appendChild(span);
     });
   }
-
-  function renderEntries() {
-    entriesUl.innerHTML = "";
-    const entries = store.entries;
-    countEl.textContent = `(${entries.length})`;
-    entries.forEach((e,i) => {
-      const li = document.createElement("li");
-      li.className = "entry";
-      li.innerHTML = `<b>${e.prompt}</b><br>${e.text}`;
+  function renderEntries(){
+    entriesUl.innerHTML="";
+    const entries=store.entries||[]; countEl.textContent=`(${entries.length})`;
+    entries.forEach(e=>{
+      const li=document.createElement("li"); li.className="entry";
+      li.innerHTML=`<b>${escapeHtml(e.prompt||"(none)")}</b><br>${escapeHtml(e.text||"")}`;
       entriesUl.appendChild(li);
     });
   }
-
-  function setPrompt(p) {
-    store.current = p;
-    currentPromptEl.textContent = p;
+  function setPrompt(p){
+    if(store.current) lastPromptEl.textContent=`Last: ${store.current}`;
+    store.current=p; currentPromptEl.textContent=p; resetDangerForNewPrompt();
   }
 
-  function next() {
-    const t = draftEl.value.trim();
-    if (t) {
-      store.entries = [...store.entries, {prompt: store.current, text: t}];
-      draftEl.value = "";
-      renderEntries();
-    }
-    setPrompt(randPrompt(store.prompts, store.current));
-    draftEl.focus();
+  // ===== Actions =====
+  function next(){
+    const t=draftEl.value.trim();
+    if(t){ store.entries=[...(store.entries||[]), {prompt:store.current||"(none)", text:t}]; draftEl.value=""; renderEntries(); }
+    setPrompt(randPrompt(store.prompts, store.current)); draftEl.focus();
   }
-
-  async function finishCopy() {
+  async function finishCopy(){
     next();
-    const txt = `Title: ${store.title}\n\n` + store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
-    try { await navigator.clipboard.writeText(txt); alert("Copied to clipboard!"); } catch {}
+    const header = store.title ? `Title: ${store.title}\n\n` : "";
+    const txt = header + (store.entries||[]).map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    try{ await navigator.clipboard.writeText(txt); alert("Copied to clipboard!"); }catch{}
   }
-
-  function downloadFile() {
-    const txt = store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
-    const blob = new Blob([txt], {type:"text/plain"}); const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href=url; a.download="ideator_session.txt"; a.click(); URL.revokeObjectURL(url);
+  function downloadFile(){
+    const header = store.title ? `Title: ${store.title}\n\n` : "";
+    const txt = header + (store.entries||[]).map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    const blob=new Blob([txt],{type:"text/plain"}); const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=`ideator_${slug(store.title)}.txt`; a.click(); URL.revokeObjectURL(url);
   }
+  function clearSession(){ if(confirm("Clear all entries?")){ store.entries=[]; renderEntries(); } }
 
-  function clearSession() {
-    if(confirm("Clear all entries?")) { store.entries=[]; renderEntries(); }
-  }
-
-  // --- Init ---
+  // ===== Init =====
   (function init(){
     renderPrompts();
-    setPrompt(store.current || randPrompt(store.prompts));
+    setPrompt(store.current || randPrompt(store.prompts, null));
     renderEntries();
     titleInput.value = store.title;
   })();
 
-  // --- Events ---
+  // ===== Events =====
   document.getElementById("nextBtn").onclick = next;
   document.getElementById("finishBtn").onclick = finishCopy;
   document.getElementById("downloadBtn").onclick = downloadFile;
   document.getElementById("clearBtn").onclick = clearSession;
-  document.getElementById("addBtn").onclick = ()=> {
-    const v = addInput.value.trim(); if(!v) return;
-    store.prompts=[...store.prompts,v]; renderPrompts(); addInput.value="";
-  };
   titleInput.oninput = ()=>{ store.title = titleInput.value; };
+
+  // Dangerous-mode arming + typing heartbeat
+  draftEl.addEventListener('keydown', ()=>{ if(dangerToggle.checked && !danger.active) startDangerWindow(); danger.lastTypeTs=Date.now(); });
+  dangerToggle.addEventListener('change', ()=>{ if(!dangerToggle.checked) stopDanger("Dangerous Mode off."); else dangerStatus.textContent="Dangerous Mode armed for this prompt (starts on first keystroke)."; });
 
   // Keyboard shortcuts
   window.addEventListener("keydown", e=>{
-    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&!e.shiftKey){e.preventDefault();next();}
-    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&e.shiftKey){e.preventDefault();finishCopy();}
+    if((e.ctrlKey||e.metaKey) && e.key==="Enter" && !e.shiftKey){ e.preventDefault(); next(); }
+    if((e.ctrlKey||e.metaKey) && e.key==="Enter" &&  e.shiftKey){ e.preventDefault(); finishCopy(); }
+  });
+
+  // Small slider knob move (pure CSS alternative would require sibling selector).
+  // This keeps visual in sync when toggled:
+  dangerToggle.addEventListener('change', (e)=>{
+    const knob = e.target.nextElementSibling.querySelector('span');
+    knob.style.transform = e.target.checked ? 'translateX(16px)' : 'translateX(0)';
+    e.target.nextElementSibling.style.background = e.target.checked ? '#16a34a' : '#cbd5e1';
   });
 </script>
 </body>
