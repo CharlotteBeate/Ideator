@@ -173,11 +173,21 @@
     if (now - danger.lastTypeTs > 2000) { draftEl.value = ""; store.draft = ""; danger.lastTypeTs = now; }
   }, 200);
 }
-  function stopDanger(msg=""){
-    if(danger.interval) clearInterval(danger.interval);
-    danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
-    setDangerUI(false); dangerStatus.textContent=msg;
-  }
+  // function stopDanger(msg=""){
+  //   if(danger.interval) clearInterval(danger.interval);
+  //   danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
+  //   setDangerUI(false); dangerStatus.textContent=msg;
+  // }
+
+  function stopDanger(msg="") {
+  if (danger.interval) clearInterval(danger.interval);
+  danger.active = false;
+  danger.startTs = danger.endTs = danger.lastTypeTs = null;
+  danger.interval = null;
+  draftEl.classList.remove("danger-active");
+  dangerStatus.textContent = msg;
+  // NOTE: do NOT change danger.hasRunThisPrompt here
+}
   function resetDangerForNewPrompt(){ stopDanger(""); if(dangerToggle.checked) dangerStatus.textContent="Dangerous Mode armed for this prompt (starts on first keystroke)."; }
 
   // ===== Renderers =====
