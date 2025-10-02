@@ -47,9 +47,9 @@
     <details id="infoBox" class="card pad">
       <summary class="btn" style="display:inline-block; margin-bottom:8px;">Info</summary>
       <div class="muted" style="max-width:72ch;">
-        This interface helps fast iteration. Type freely. Click <b>Next</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>) for a new prompt.
+        This is an interface to enable quick iterations of ideation and move. You get a prompt on how to move with your idea and can start writing. Once you run out of juice, you click <b>Next</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>) for a new prompt.
         Click <b>Finish & Copy</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>) to copy your chain.
-        Data is saved locally in your browser.
+        Data is saved locally in your browser, never leaves it.
       </div>
     </details>
 
@@ -209,8 +209,24 @@
     const blob=new Blob([txt],{type:"text/plain"}); const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=`ideator_${slug(store.title)}.txt`; a.click(); URL.revokeObjectURL(url);
   }
-  function clearSession(){ if(confirm("Clear all entries?")){ store.entries=[]; renderEntries(); } }
+  function clearSession() {
+  if (!confirm("Clear all entries, draft, and title?")) return;
 
+  // entries + draft
+  store.entries = [];
+  draftEl.value = "";
+  store.draft = "";
+  renderEntries();
+
+  // ALSO clear the Topic/Title (this was missing)
+  store.title = "";
+  titleInput.value = "";
+
+  // Optional: reset the Dangerous Mode status line
+  dangerStatus.textContent = dangerToggle.checked
+    ? "Dangerous Mode armed for this prompt (starts on first keystroke)."
+    : "";
+}
   // ===== Init =====
   (function init(){
     renderPrompts();
