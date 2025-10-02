@@ -30,11 +30,10 @@
   .chip { border: 1px solid var(--line); background: #f8fafc; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
   textarea, input[type="text"] { width: 100%; border: 1px solid var(--line); border-radius: 16px; padding: 14px; font: inherit; outline: none; background: #fff; }
   textarea:focus, input[type="text"]:focus { box-shadow: 0 0 0 3px #cbd5e1; }
-  textarea { min-height: 220px; resize: vertical; transition: box-shadow .15s, border-color .15s; }
+  textarea { min-height: 220px; resize: vertical; }
   .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
   .entry { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
   .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
-  kbd { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12px; background: #fff; }
   .label { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
   .right { justify-content: flex-end; }
   .toggle { display:inline-flex; align-items:center; gap:8px; font-size: 13px; color: var(--muted); }
@@ -44,8 +43,6 @@
   .slider:before { position:absolute; content:""; height:18px; width:18px; left:2px; top:2px; background:white; transition:.2s; border-radius:50%; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
   .switch input:checked + .slider { background:#16a34a; }
   .switch input:checked + .slider:before { transform: translateX(16px); }
-  /* visual cue when dangerous mode is active */
-  .danger-active { box-shadow: 0 0 0 3px rgba(220,38,38,.25) !important; border-color: #ef4444 !important; }
 </style>
 </head>
 <body>
@@ -79,7 +76,6 @@
 
     <div style="margin-top:12px;">
       <div class="row" style="justify-content:space-between; margin-bottom:6px;">
-        <div class="muted"></div>
         <label class="toggle" title="If on, pausing > 2s in the first minute clears text (per prompt)">
           Dangerous Mode
           <span class="switch"><input type="checkbox" id="dangerToggle"><span class="slider"></span></span>
@@ -91,8 +87,8 @@
 
     <div class="card pad" style="margin-top:16px;">
       <div class="row" style="justify-content:space-between; align-items:center;">
-        <h2 style="margin:0; font-size:18px;">Session entries <span class="muted" id="count">(0)</span></h2>
         <label for="titleInput" style="margin-right:6px; font-size:14px; color:var(--muted);">Topic/Title:</label>
+        <h2 style="margin:0; font-size:18px;">Session entries <span class="muted" id="count">(0)</span></h2>
         <input id="titleInput" type="text" placeholder="Add a title/topic (optional)" style="max-width:360px;" />
       </div>
       <ul id="entries" class="list" style="margin-top:10px;"></ul>
@@ -130,7 +126,6 @@
   </div>
 
 <script>
-  // --- Default prompts ---
   const DEFAULT_PROMPTS = [
     "crystallize",
     "blur",
@@ -145,50 +140,39 @@
     "How to make more narrow/concrete/implementable next week?"
   ];
 
-  // --- LocalStorage-backed state ---
+  // --- State ---
   const store = {
-    get prompts() {
-      const raw = JSON.parse(localStorage.getItem("ig.prompts") || "null");
-      return (Array.isArray(raw) && raw.length) ? raw : DEFAULT_PROMPTS;
-    },
+    get prompts() { return JSON.parse(localStorage.getItem("ig.prompts") || "null") || DEFAULT_PROMPTS; },
     set prompts(v) { localStorage.setItem("ig.prompts", JSON.stringify(v)); },
     get current() { return JSON.parse(localStorage.getItem("ig.current") || "null"); },
     set current(v) { localStorage.setItem("ig.current", JSON.stringify(v)); },
     get entries() { return JSON.parse(localStorage.getItem("ig.entries") || "[]"); },
     set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); },
-    get draft() { return localStorage.getItem("ig.draft") || ""; },
-    set draft(v) { localStorage.setItem("ig.draft", v); },
-    get last() { return JSON.parse(localStorage.getItem("ig.last") || "null"); },
-    set last(v) { localStorage.setItem("ig.last", JSON.stringify(v)); },
     get title() { return localStorage.getItem("ig.title") || ""; },
-    set title(v) { localStorage.setItem("ig.title", v); },
-    get infoOpen() { return (localStorage.getItem("ig.infoOpen") || "true") === "true"; },
-    set infoOpen(v) { localStorage.setItem("ig.infoOpen", String(v)); }
+    set title(v) { localStorage.setItem("ig.title", v); }
   };
 
-  // --- DOM refs ---
-  const infoBox = document.getElementById('infoBox');
+  // DOM refs
+  const chips = document.getElementById("chips");
   const currentPromptEl = document.getElementById("currentPrompt");
   const lastPromptEl = document.getElementById("lastPrompt");
-  const nextBtn = document.getElementById("nextBtn");
-  const finishBtn = document.getElementById("finishBtn");
-  const downloadBtn = document.getElementById("downloadBtn");
-  const clearBtn = document.getElementById("clearBtn");
   const draftEl = document.getElementById("draft");
   const entriesUl = document.getElementById("entries");
   const countEl = document.getElementById("count");
-  const toggleEditBtn = document.getElementById("toggleEdit");
-  const stockView = document.getElementById("stockView");
-  const stockEdit = document.getElementById("stockEdit");
-  const stockArea = document.getElementById("stockArea");
-  const chips = document.getElementById("chips");
   const addInput = document.getElementById("addInput");
-  const addBtn = document.getElementById("addBtn");
-  const copyAllBtn = document.getElementById("copyAll");
-  const download2Btn = document.getElementById("download2");
+  const titleInput = document.getElementById("titleInput");
+  const stockEdit = document.getElementById("stockEdit");
   const dangerToggle = document.getElementById("dangerToggle");
   const dangerStatus = document.getElementById("dangerStatus");
   const titleInput = document.getElementById("titleInput");
+
+  function randPrompt(stock, last) {
+    if (!stock.length) return "(add prompts)";
+    if (stock.length === 1) return stock[0];
+    let p; do { p = stock[Math.floor(Math.random() * stock.length)]; } while (p === last);
+    return p;
+  }
+
 
   // --- Utils ---
   function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
@@ -215,68 +199,85 @@
   function stopDanger(msg="") { if (danger.interval) clearInterval(danger.interval); danger = { active:false, startTs:null, endTs:null, lastTypeTs:null, interval:null }; setDangerUI(false); dangerStatus.textContent = msg; }
   function resetDangerForNewPrompt() { stopDanger(""); if (dangerToggle.checked) dangerStatus.textContent = "Dangerous Mode armed for this prompt (starts on first keystroke)."; }
 
-  // --- Rendering ---
+
   function renderPrompts() {
     chips.innerHTML = "";
-    store.prompts.forEach(p => { const span = document.createElement("span"); span.className = "chip"; span.textContent = p; chips.appendChild(span); });
-    stockArea.value = store.prompts.join("
-");
+    store.prompts.forEach(p => {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = p;
+      chips.appendChild(span);
+    });
   }
+
   function renderEntries() {
-    entriesUl.innerHTML = ""; const entries = store.entries; countEl.textContent = `(${entries.length})`;
-    if (!entries.length) { const li = document.createElement("li"); li.className = "entry muted"; li.textContent = "No entries yet. Start typing and press Next."; entriesUl.appendChild(li); return; }
-    entries.forEach((e,i) => { const li = document.createElement("li"); li.className = "entry"; const time = new Date(e.ts).toLocaleTimeString(); li.innerHTML = `<div class=\"muted\" style=\"font-size:12px;\">#${i+1} · ${time}</div><div style=\"font-weight:600;\">${escapeHtml(e.prompt)}</div><div style=\"white-space:pre-wrap; font-size:14px; margin-top:4px;\">${e.text ? escapeHtml(e.text) : '<span class=\"muted\">(no text)</span>'}</div>`; entriesUl.appendChild(li); });
+    entriesUl.innerHTML = "";
+    const entries = store.entries;
+    countEl.textContent = `(${entries.length})`;
+    entries.forEach((e,i) => {
+      const li = document.createElement("li");
+      li.className = "entry";
+      li.innerHTML = `<b>${e.prompt}</b><br>${e.text}`;
+      entriesUl.appendChild(li);
+    });
   }
-  function setPrompt(p) { store.last = store.current || null; store.current = p; currentPromptEl.textContent = p; lastPromptEl.textContent = store.last ? `(last: ${store.last})` : ""; resetDangerForNewPrompt(); }
 
-  // --- Export / Download ---
-  function exportText() { const titleLine = store.title ? `Title: ${store.title}
-` : ""; const header = `Ideator Session Export
-${titleLine}Date: ${new Date().toLocaleString()}
-Prompts used: ${[...new Set(store.entries.map(e => e.prompt))].join(", ")}
-`; const body = store.entries.map((e,i) => `
-### ${i+1}. ${e.prompt} (at ${new Date(e.ts).toLocaleTimeString()})
-${(e.text||"").trim()}
-`).join(""); return header + "
-" + body; }
-  function download(filename, text) { const blob = new Blob([text], {type:"text/plain;charset=utf-8"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+  function setPrompt(p) {
+    store.current = p;
+    currentPromptEl.textContent = p;
+  }
 
-  // --- Actions ---
-  function next() { const t = (draftEl.value || "").trim(); if (t.length > 0) { const entry = { prompt: store.current || randPrompt(store.prompts), text: t, ts: Date.now() }; const arr = store.entries; arr.push(entry); store.entries = arr; renderEntries(); draftEl.value = ""; store.draft = ""; } setPrompt(randPrompt(store.prompts, store.current)); draftEl.focus(); }
-  async function finishCopy() { const t = (draftEl.value || '').trim(); if (t.length > 0) { const arr = store.entries; arr.push({ prompt: store.current || "(none)", text: t, ts: Date.now() }); store.entries = arr; renderEntries(); draftEl.value = ''; store.draft = ''; } const txt = exportText(); try { await navigator.clipboard.writeText(txt); alert("Copied session to clipboard!"); } catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert("Copied session to clipboard!"); } }
-  function clearSession() { if (!confirm("Clear all entries and draft?")) return; store.entries = []; draftEl.value = ""; store.draft = ""; renderEntries(); }
+  function next() {
+    const t = draftEl.value.trim();
+    if (t) {
+      store.entries = [...store.entries, {prompt: store.current, text: t}];
+      draftEl.value = "";
+      renderEntries();
+    }
+    setPrompt(randPrompt(store.prompts, store.current));
+    draftEl.focus();
+  }
 
-  // --- Event wiring ---
-  nextBtn.onclick = next;
-  finishBtn.onclick = finishCopy;
-  downloadBtn.onclick = () => { const name = store.title ? `ideator_session_${slug(store.title)}.txt` : 'ideator_session.txt'; download(name, exportText()); };
-  clearBtn.onclick = clearSession;
+  async function finishCopy() {
+    next();
+    const txt = `Title: ${store.title}\n\n` + store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    try { await navigator.clipboard.writeText(txt); alert("Copied to clipboard!"); } catch {}
+  }
 
-  // Dangerous Mode toggle and typing
-  dangerToggle.onchange = () => { if (dangerToggle.checked) { if (draftEl.value.trim().length > 0) startDangerWindow(); else dangerStatus.textContent = "Dangerous Mode armed for this prompt (starts on first keystroke)."; } else { stopDanger("Dangerous Mode off."); } };
-  draftEl.oninput = () => { if (danger.active) danger.lastTypeTs = Date.now(); else if (dangerToggle.checked) startDangerWindow(); store.draft = draftEl.value; };
+  function downloadFile() {
+    const txt = store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    const blob = new Blob([txt], {type:"text/plain"}); const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="ideator_session.txt"; a.click(); URL.revokeObjectURL(url);
+  }
 
-  // Prompt stock add/edit/save
-  addBtn.onclick = () => { const v = (addInput.value || '').trim(); if (!v) return; const s = store.prompts.slice(); if (!s.includes(v)) s.push(v); store.prompts = s; addInput.value = ''; renderPrompts(); };
-  addInput.onkeydown = (e) => { if (e.key === 'Enter') addBtn.click(); };
-  toggleEditBtn.onclick = () => { const edit = stockEdit.style.display === 'none'; stockEdit.style.display = edit ? 'block' : 'none'; stockView.style.display = edit ? 'none' : 'block'; if (edit) stockArea.value = store.prompts.join('
-'); };
-  document.getElementById('saveStock').onclick = () => { const lines = stockArea.value.split(/
-+/).map(s => s.trim()).filter(Boolean); store.prompts = lines; renderPrompts(); toggleEditBtn.click(); };
-
-  copyAllBtn.onclick = finishCopy;
-  download2Btn.onclick = () => { const name = store.title ? `ideator_session_${slug(store.title)}.txt` : 'ideator_session.txt'; download(name, exportText()); };
-
-  titleInput.oninput = () => { store.title = titleInput.value; };
-
-  // Keyboard shortcuts (avoid hijacking other inputs)
-  window.addEventListener('keydown', (e) => { const cmd = e.metaKey || e.ctrlKey; if (!cmd) return; const tag = document.activeElement?.tagName || ''; const id = document.activeElement?.id || ''; const inDraft = id === 'draft'; const inOtherInput = !inDraft && (tag === 'INPUT' || tag === 'TEXTAREA'); if (inOtherInput) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); next(); } if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); finishCopy(); } if (e.key.toLowerCase() === 'k') { e.preventDefault(); draftEl.focus(); } });
-
-  // Persist info open/closed state
-  infoBox.addEventListener('toggle', () => { store.infoOpen = infoBox.open; });
+  function clearSession() {
+    if(confirm("Clear all entries?")) { store.entries=[]; renderEntries(); }
+  }
 
   // --- Init ---
-  (function init(){ renderPrompts(); setPrompt(store.current || randPrompt(store.prompts)); draftEl.value = store.draft; titleInput.value = store.title; renderEntries(); resetDangerForNewPrompt(); infoBox.open = store.infoOpen; })();
+  (function init(){
+    renderPrompts();
+    setPrompt(store.current || randPrompt(store.prompts));
+    renderEntries();
+    titleInput.value = store.title;
+  })();
+
+  // --- Events ---
+  document.getElementById("nextBtn").onclick = next;
+  document.getElementById("finishBtn").onclick = finishCopy;
+  document.getElementById("downloadBtn").onclick = downloadFile;
+  document.getElementById("clearBtn").onclick = clearSession;
+  document.getElementById("addBtn").onclick = ()=> {
+    const v = addInput.value.trim(); if(!v) return;
+    store.prompts=[...store.prompts,v]; renderPrompts(); addInput.value="";
+  };
+  titleInput.oninput = ()=>{ store.title = titleInput.value; };
+
+  // Keyboard shortcuts
+  window.addEventListener("keydown", e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&!e.shiftKey){e.preventDefault();next();}
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&e.shiftKey){e.preventDefault();finishCopy();}
+  });
 </script>
 </body>
 </html>
