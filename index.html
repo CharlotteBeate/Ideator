@@ -30,14 +30,16 @@
   .btn.primary:hover { filter: brightness(0.96); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { border: 1px solid var(--line); background: #f8fafc; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
-  textarea, input[type="text"] { width: 100%; border: 1px solid var(--line); border-radius: 16px; padding: 14px; font: inherit; outline: none; background: #fff; }
-  textarea:focus, input[type="text"]:focus { box-shadow: 0 0 0 3px #cbd5e1; }
+  textarea, input[type="text"], select { width: 100%; border: 1px solid var(--line); border-radius: 16px; padding: 14px; font: inherit; outline: none; background: #fff; }
+  textarea:focus, input[type="text"]:focus, select:focus { box-shadow: 0 0 0 3px #cbd5e1; }
   textarea { min-height: 220px; resize: vertical; }
   .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
   .entry { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
   .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
   .label { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
   .danger-active { outline: 2px dashed #ef4444; outline-offset: 2px; }
+  /* small inline select style */
+  .inline-select { width: auto; max-width: 320px; display: none; padding: 8px 12px; border-radius: 12px; }
 </style>
 </head>
 <body>
@@ -47,7 +49,7 @@
     <details id="infoBox" class="card pad">
       <summary class="btn" style="display:inline-block; margin-bottom:8px;">Info</summary>
       <div class="muted" style="max-width:72ch;">
-        This is an interface to enable quick iterations of ideation and move. You get a prompt on how to move with your idea and can start writing. Once you run out of juice, you click <b>Next</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>) for a new prompt.
+        This is an interface to enable quick iterations of ideation and move. You get a prompt on how to move with your idea and can start writing. Once you run out of juice, click <b>Next Random</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd>) for a new random prompt, or use <b>Choose Next</b> to pick the next prompt from a list.
         Click <b>Finish & Copy</b> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>) to copy your chain.
         Data is saved locally in your browser, never leaves it.
       </div>
@@ -61,7 +63,12 @@
           <div id="lastPrompt" class="muted" style="font-size:12px; margin-top:2px;"></div>
         </div>
         <div class="row right gap-12">
-          <button id="nextBtn" class="btn primary">Next</button>
+          <!-- Replaced single Next with two controls -->
+          <button id="nextRandomBtn" class="btn primary" title="Random next (Ctrl/Cmd+Enter)">Next Random</button>
+          <div class="row" style="gap:8px; align-items:center;">
+            <button id="chooseNextBtn" class="btn" title="Pick the next prompt">Choose Next ▾</button>
+            <select id="promptSelect" class="inline-select"></select>
+          </div>
           <button id="finishBtn" class="btn">Finish & Copy</button>
           <button id="downloadBtn" class="btn">Download</button>
           <button id="clearBtn" class="btn">Clear</button>
@@ -140,54 +147,58 @@
   const dangerToggle = document.getElementById("dangerToggle");
   const dangerStatus = document.getElementById("dangerStatus");
 
+  // New controls
+  const nextRandomBtn = document.getElementById("nextRandomBtn");
+  const chooseNextBtn = document.getElementById("chooseNextBtn");
+  const promptSelect  = document.getElementById("promptSelect");
+
   // ===== Utils =====
   function slug(s){ return (s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'session'; }
   function randPrompt(stock,last){ if(!stock.length) return "(add prompts)"; if(stock.length===1) return stock[0];
     let p; do{ p=stock[Math.floor(Math.random()*stock.length)]; } while(p===last); return p; }
   function escapeHtml(str){ return String(str).replace(/[&<>\"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 
+  function populatePromptSelect(){
+    promptSelect.innerHTML = "";
+    (store.prompts||[]).forEach(p=>{
+      const opt = document.createElement("option");
+      opt.value = p; opt.textContent = p;
+      promptSelect.appendChild(opt);
+    });
+  }
+
   // ===== Dangerous Mode =====
   let danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null,   hasRunThisPrompt:false };
   function setDangerUI(on){ draftEl.classList.toggle('danger-active', !!on); }
   function startDangerWindow() {
-  if (!dangerToggle.checked || danger.active) return;
+    if (!dangerToggle.checked || danger.active) return;
+    if (danger.hasRunThisPrompt) {
+      dangerStatus.textContent = "Dangerous Mode already used for this prompt.";
+      return;
+    }
+    danger.hasRunThisPrompt = true;
+    danger.active = true;
+    danger.startTs = Date.now();
+    danger.endTs   = danger.startTs + 60_000;
+    danger.lastTypeTs = Date.now();
+    draftEl.classList.add("danger-active");
+    dangerStatus.textContent = "Dangerous Mode active: 60s window. Pausing > 2s clears text.";
 
-  // PREVENT re-starting for this prompt
-  if (danger.hasRunThisPrompt) {
-    dangerStatus.textContent = "Dangerous Mode already used for this prompt.";
-    return;
+    danger.interval = setInterval(() => {
+      const now = Date.now();
+      if (!dangerToggle.checked) { stopDanger("Dangerous Mode off."); return; }
+      if (now > danger.endTs) { stopDanger("Dangerous Mode is over for this prompt."); return; }
+      if (now - danger.lastTypeTs > 2000) { draftEl.value = ""; store.draft = ""; danger.lastTypeTs = now; }
+    }, 200);
   }
-  danger.hasRunThisPrompt = true; // mark as used as soon as we start
-
-  danger.active = true;
-  danger.startTs = Date.now();
-  danger.endTs   = danger.startTs + 60_000;
-  danger.lastTypeTs = Date.now();
-  draftEl.classList.add("danger-active");
-  dangerStatus.textContent = "Dangerous Mode active: 60s window. Pausing > 2s clears text.";
-
-  danger.interval = setInterval(() => {
-    const now = Date.now();
-    if (!dangerToggle.checked) { stopDanger("Dangerous Mode off."); return; }
-    if (now > danger.endTs) { stopDanger("Dangerous Mode is over for this prompt."); return; }
-    if (now - danger.lastTypeTs > 2000) { draftEl.value = ""; store.draft = ""; danger.lastTypeTs = now; }
-  }, 200);
-}
-  // function stopDanger(msg=""){
-  //   if(danger.interval) clearInterval(danger.interval);
-  //   danger={active:false,startTs:null,endTs:null,lastTypeTs:null,interval:null};
-  //   setDangerUI(false); dangerStatus.textContent=msg;
-  // }
-
   function stopDanger(msg="") {
-  if (danger.interval) clearInterval(danger.interval);
-  danger.active = false;
-  danger.startTs = danger.endTs = danger.lastTypeTs = null;
-  danger.interval = null;
-  draftEl.classList.remove("danger-active");
-  dangerStatus.textContent = msg;
-  // NOTE: do NOT change danger.hasRunThisPrompt here
-}
+    if (danger.interval) clearInterval(danger.interval);
+    danger.active = false;
+    danger.startTs = danger.endTs = danger.lastTypeTs = null;
+    danger.interval = null;
+    draftEl.classList.remove("danger-active");
+    dangerStatus.textContent = msg;
+  }
   function resetDangerForNewPrompt(){ stopDanger(""); if(dangerToggle.checked) dangerStatus.textContent="Dangerous Mode armed for this prompt (starts on first keystroke)."; }
 
   // ===== Renderers =====
@@ -196,6 +207,8 @@
     (store.prompts||[]).forEach(p=>{
       const span=document.createElement("span"); span.className="chip"; span.textContent=p; chips.appendChild(span);
     });
+    // keep the chooser fresh
+    populatePromptSelect();
   }
   function renderEntries(){
     entriesUl.innerHTML="";
@@ -212,10 +225,17 @@
   }
 
   // ===== Actions =====
-  function next(){
+  function next(){  // unchanged behavior (used by Next Random and Ctrl/Cmd+Enter)
     const t=draftEl.value.trim();
     if(t){ store.entries=[...(store.entries||[]), {prompt:store.current||"(none)", text:t}]; draftEl.value=""; renderEntries(); }
     setPrompt(randPrompt(store.prompts, store.current)); draftEl.focus();
+  }
+  function chooseNext(){ // shows dropdown; selection commits and sets prompt
+    if(!(store.prompts||[]).length){ alert("No prompts found. Add some in Manage prompts."); return; }
+    populatePromptSelect();
+    promptSelect.style.display = 'inline-block';
+    promptSelect.value = (store.prompts[0] || "");
+    promptSelect.focus();
   }
   async function finishCopy(){
     next();
@@ -230,23 +250,18 @@
     const a=document.createElement("a"); a.href=url; a.download=`ideator_${slug(store.title)}.txt`; a.click(); URL.revokeObjectURL(url);
   }
   function clearSession() {
-  if (!confirm("Clear all entries, draft, and title?")) return;
+    if (!confirm("Clear all entries, draft, and title?")) return;
+    store.entries = [];
+    draftEl.value = "";
+    store.draft = "";
+    renderEntries();
+    store.title = "";
+    titleInput.value = "";
+    dangerStatus.textContent = dangerToggle.checked
+      ? "Dangerous Mode armed for this prompt (starts on first keystroke)."
+      : "";
+  }
 
-  // entries + draft
-  store.entries = [];
-  draftEl.value = "";
-  store.draft = "";
-  renderEntries();
-
-  // ALSO clear the Topic/Title (this was missing)
-  store.title = "";
-  titleInput.value = "";
-
-  // Optional: reset the Dangerous Mode status line
-  dangerStatus.textContent = dangerToggle.checked
-    ? "Dangerous Mode armed for this prompt (starts on first keystroke)."
-    : "";
-}
   // ===== Init =====
   (function init(){
     renderPrompts();
@@ -256,7 +271,32 @@
   })();
 
   // ===== Events =====
-  document.getElementById("nextBtn").onclick = next;
+  nextRandomBtn.onclick = next;
+  chooseNextBtn.onclick = chooseNext;
+
+  // When a prompt is chosen from the dropdown:
+  promptSelect.addEventListener("change", ()=>{
+    const t=draftEl.value.trim();
+    if(t){ store.entries=[...(store.entries||[]), {prompt:store.current||"(none)", text:t}]; draftEl.value=""; renderEntries(); }
+    setPrompt(promptSelect.value);
+    promptSelect.style.display = 'none';
+    draftEl.focus();
+  });
+
+  // Hide dropdown on Escape or blur (optional nicety)
+  promptSelect.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape"){
+      e.preventDefault();
+      promptSelect.style.display = 'none';
+      draftEl.focus();
+    }
+    if(e.key === "Enter"){ // Enter also confirms, mirroring change event
+      e.preventDefault();
+      promptSelect.dispatchEvent(new Event("change"));
+    }
+  });
+  promptSelect.addEventListener("blur", ()=>{ promptSelect.style.display = 'none'; });
+
   document.getElementById("finishBtn").onclick = finishCopy;
   document.getElementById("downloadBtn").onclick = downloadFile;
   document.getElementById("clearBtn").onclick = clearSession;
@@ -268,8 +308,8 @@
 
   // Keyboard shortcuts
   window.addEventListener("keydown", e=>{
-    if((e.ctrlKey||e.metaKey) && e.key==="Enter" && !e.shiftKey){ e.preventDefault(); next(); }
-    if((e.ctrlKey||e.metaKey) && e.key==="Enter" &&  e.shiftKey){ e.preventDefault(); finishCopy(); }
+    if((e.ctrlKey||e.metaKey) && e.key==="Enter" && !e.shiftKey){ e.preventDefault(); next(); }          // Next Random
+    if((e.ctrlKey||e.metaKey) && e.key==="Enter" &&  e.shiftKey){ e.preventDefault(); finishCopy(); }   // Finish & Copy
   });
 
   // Small slider knob move (pure CSS alternative would require sibling selector).
