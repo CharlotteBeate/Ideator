@@ -127,6 +127,7 @@
   </div>
 
 <script>
+
   const DEFAULT_PROMPTS = [
     "crystallize",
     "blur",
@@ -141,7 +142,48 @@
     "How to make more narrow/concrete/implementable next week?"
   ];
 
-  // rest of JS unchanged from previous version...
+  // --- State (localStorage-backed) ---
+  const store = {
+    get prompts() { return JSON.parse(localStorage.getItem("ig.prompts") || "null") || DEFAULT_PROMPTS; },
+    set prompts(v) { localStorage.setItem("ig.prompts", JSON.stringify(v)); },
+    get current() { return JSON.parse(localStorage.getItem("ig.current") || "null"); },
+    set current(v) { localStorage.setItem("ig.current", JSON.stringify(v)); },
+    get entries() { return JSON.parse(localStorage.getItem("ig.entries") || "[]"); },
+    set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); }
+  };
+
+  // --- DOM refs ---
+  const chips = document.getElementById("chips");
+  const currentPromptEl = document.getElementById("currentPrompt");
+  const lastPromptEl = document.getElementById("lastPrompt");
+
+  function randPrompt(stock, last) {
+    if (!stock.length) return "(add prompts)";
+    if (stock.length === 1) return stock[0];
+    let p; do { p = stock[Math.floor(Math.random() * stock.length)]; } while (p === last);
+    return p;
+  }
+
+  function renderPrompts() {
+    chips.innerHTML = "";
+    store.prompts.forEach(p => {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = p;
+      chips.appendChild(span);
+    });
+  }
+
+  function setPrompt(p) {
+    store.current = p;
+    currentPromptEl.textContent = p;
+  }
+
+  // --- Init ---
+  (function init(){
+    renderPrompts();
+    setPrompt(store.current || randPrompt(store.prompts));
+  })();
 </script>
 </body>
 </html>
