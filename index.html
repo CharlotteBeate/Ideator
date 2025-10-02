@@ -34,7 +34,6 @@
   .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
   .entry { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
   .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
-  kbd { border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12px; background: #fff; }
   .label { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
   .right { justify-content: flex-end; }
   .toggle { display:inline-flex; align-items:center; gap:8px; font-size: 13px; color: var(--muted); }
@@ -77,7 +76,6 @@
 
     <div style="margin-top:12px;">
       <div class="row" style="justify-content:space-between; margin-bottom:6px;">
-        <div class="muted"></div>
         <label class="toggle" title="If on, pausing > 2s in the first minute clears text (per prompt)">
           Dangerous Mode
           <span class="switch"><input type="checkbox" id="dangerToggle"><span class="slider"></span></span>
@@ -141,20 +139,27 @@
     "How to make more narrow/concrete/implementable next week?"
   ];
 
-  // --- State (localStorage-backed) ---
+  // --- State ---
   const store = {
     get prompts() { return JSON.parse(localStorage.getItem("ig.prompts") || "null") || DEFAULT_PROMPTS; },
     set prompts(v) { localStorage.setItem("ig.prompts", JSON.stringify(v)); },
     get current() { return JSON.parse(localStorage.getItem("ig.current") || "null"); },
     set current(v) { localStorage.setItem("ig.current", JSON.stringify(v)); },
     get entries() { return JSON.parse(localStorage.getItem("ig.entries") || "[]"); },
-    set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); }
+    set entries(v) { localStorage.setItem("ig.entries", JSON.stringify(v)); },
+    get title() { return localStorage.getItem("ig.title") || ""; },
+    set title(v) { localStorage.setItem("ig.title", v); }
   };
 
-  // --- DOM refs ---
+  // DOM refs
   const chips = document.getElementById("chips");
   const currentPromptEl = document.getElementById("currentPrompt");
   const lastPromptEl = document.getElementById("lastPrompt");
+  const draftEl = document.getElementById("draft");
+  const entriesUl = document.getElementById("entries");
+  const countEl = document.getElementById("count");
+  const addInput = document.getElementById("addInput");
+  const titleInput = document.getElementById("titleInput");
 
   function randPrompt(stock, last) {
     if (!stock.length) return "(add prompts)";
@@ -173,16 +178,74 @@
     });
   }
 
+  function renderEntries() {
+    entriesUl.innerHTML = "";
+    const entries = store.entries;
+    countEl.textContent = `(${entries.length})`;
+    entries.forEach((e,i) => {
+      const li = document.createElement("li");
+      li.className = "entry";
+      li.innerHTML = `<b>${e.prompt}</b><br>${e.text}`;
+      entriesUl.appendChild(li);
+    });
+  }
+
   function setPrompt(p) {
     store.current = p;
     currentPromptEl.textContent = p;
+  }
+
+  function next() {
+    const t = draftEl.value.trim();
+    if (t) {
+      store.entries = [...store.entries, {prompt: store.current, text: t}];
+      draftEl.value = "";
+      renderEntries();
+    }
+    setPrompt(randPrompt(store.prompts, store.current));
+    draftEl.focus();
+  }
+
+  async function finishCopy() {
+    next();
+    const txt = `Title: ${store.title}\n\n` + store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    try { await navigator.clipboard.writeText(txt); alert("Copied to clipboard!"); } catch {}
+  }
+
+  function downloadFile() {
+    const txt = store.entries.map((e,i)=>`${i+1}. ${e.prompt}\n${e.text}`).join("\n\n");
+    const blob = new Blob([txt], {type:"text/plain"}); const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="ideator_session.txt"; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function clearSession() {
+    if(confirm("Clear all entries?")) { store.entries=[]; renderEntries(); }
   }
 
   // --- Init ---
   (function init(){
     renderPrompts();
     setPrompt(store.current || randPrompt(store.prompts));
+    renderEntries();
+    titleInput.value = store.title;
   })();
+
+  // --- Events ---
+  document.getElementById("nextBtn").onclick = next;
+  document.getElementById("finishBtn").onclick = finishCopy;
+  document.getElementById("downloadBtn").onclick = downloadFile;
+  document.getElementById("clearBtn").onclick = clearSession;
+  document.getElementById("addBtn").onclick = ()=> {
+    const v = addInput.value.trim(); if(!v) return;
+    store.prompts=[...store.prompts,v]; renderPrompts(); addInput.value="";
+  };
+  titleInput.oninput = ()=>{ store.title = titleInput.value; };
+
+  // Keyboard shortcuts
+  window.addEventListener("keydown", e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&!e.shiftKey){e.preventDefault();next();}
+    if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&e.shiftKey){e.preventDefault();finishCopy();}
+  });
 </script>
 </body>
 </html>
