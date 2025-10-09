@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>thinking in metaphors</title>
+<style>
+  :root {
+    --bg:#f8fafc; --card:#ffffff; --text:#0f172a; --muted:#475569;
+    --line:#e2e8f0; --accent:#166534;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(#fff,var(--bg));color:var(--text);
+       font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:24px}
+  header{margin-bottom:16px}
+  h1{margin:0;font-size:40px;letter-spacing:-0.02em;color:var(--accent);font-weight:800}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .pad{padding:16px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1 1 auto;min-width:220px}
+  label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+  input[type="text"], textarea{
+    width:100%;border:1px solid var(--line);border-radius:14px;padding:12px;font:inherit;outline:none;background:#fff
+  }
+  input[type="text"]:focus, textarea:focus{box-shadow:0 0 0 3px #cbd5e1}
+  textarea{min-height:260px;resize:vertical}
+  .colon{font-weight:700;color:var(--muted)}
+  .btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--text);
+       padding:10px 14px;border-radius:12px;cursor:pointer}
+  .btn:hover{background:#f1f5f9}
+  .btn.primary{background:#0b0f19;color:#fff;border-color:#0b0f19}
+  .btn.primary:hover{filter:brightness(.96)}
+  .foot{display:flex;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .muted{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header><h1>thinking in metaphors</h1></header>
+
+    <!-- Analogy row: [text] : [text] like [text] : [text] -->
+    <div class="card pad">
+      <div class="row" aria-label="analogy">
+        <div class="grow">
+          <label for="a1">Left 1</label>
+          <input id="a1" type="text" placeholder="A (e.g., neuron)"/>
+        </div>
+        <span class="colon">:</span>
+        <div class="grow">
+          <label for="a2">Left 2</label>
+          <input id="a2" type="text" placeholder="B (e.g., activation)"/>
+        </div>
+        <span class="muted" style="font-weight:700;">like</span>
+        <div class="grow">
+          <label for="b1">Right 1</label>
+          <input id="b1" type="text" placeholder="C (e.g., light switch)"/>
+        </div>
+        <span class="colon">:</span>
+        <div class="grow">
+          <label for="b2">Right 2</label>
+          <input id="b2" type="text" placeholder="D (e.g., on/off)"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Two big text areas -->
+    <div class="row" style="margin-top:14px;">
+      <div class="grow card pad">
+        <label for="leftBox">Left notes / source concept</label>
+        <textarea id="leftBox" placeholder="Write a detailed description, properties, failure modes, examples..."></textarea>
+      </div>
+      <div class="grow card pad">
+        <label for="rightBox">Right notes / target concept</label>
+        <textarea id="rightBox" placeholder="Analogous description, mapping, where the metaphor holds or breaks..."></textarea>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="foot">
+      <div class="muted">Everything stays local in your browser.</div>
+      <div style="display:flex;gap:8px;">
+        <button id="copyBtn" class="btn">Copy everything</button>
+        <button id="downloadBtn" class="btn">Download everything</button>
+        <button id="clearBtn" class="btn">Clear</button>
+        <a href="./index.html" class="btn">← Back</a>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function slug(s){return (s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'metaphor';}
+
+  function gather(){
+    const a1=document.getElementById('a1').value.trim();
+    const a2=document.getElementById('a2').value.trim();
+    const b1=document.getElementById('b1').value.trim();
+    const b2=document.getElementById('b2').value.trim();
+    const left=document.getElementById('leftBox').value.trim();
+    const right=document.getElementById('rightBox').value.trim();
+
+    const header = 'thinking in metaphors\n\n';
+    const line = `${a1||'A'} : ${a2||'B'}  like  ${b1||'C'} : ${b2||'D'}`;
+    const body = `\n\n--- LEFT ---\n${left}\n\n--- RIGHT ---\n${right}\n`;
+    return header + line + body;
+  }
+
+  async function copyAll(){
+    try { await navigator.clipboard.writeText(gather()); alert('Copied!'); }
+    catch(e){ alert('Copy failed. You can still select and copy manually.'); }
+  }
+
+  function downloadAll(){
+    const txt=gather();
+    const name=`metaphor_${slug(document.getElementById('a1').value)}_${slug(document.getElementById('b1').value)}.txt`;
+    const blob=new Blob([txt],{type:'text/plain'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=name; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearAll(){
+    ['a1','a2','b1','b2','leftBox','rightBox'].forEach(id=>document.getElementById(id).value='');
+  }
+
+  document.getElementById('copyBtn').onclick = copyAll;
+  document.getElementById('downloadBtn').onclick = downloadAll;
+  document.getElementById('clearBtn').onclick = clearAll;
+</script>
+</body>
+</html>
